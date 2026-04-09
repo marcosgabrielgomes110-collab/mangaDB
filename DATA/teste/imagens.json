@@ -1,7 +1,0 @@
-{
-    "schema": {
-        "id": "int",
-        "url": "str"
-    },
-    "data": []
-}

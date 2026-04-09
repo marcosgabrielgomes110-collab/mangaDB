@@ -1,8 +1,26 @@
 {
     "schema": {
-        "nome": "str",
-        "senha": "str",
-        "id": "int"
+        "id": {
+            "type": "int",
+            "encrypted": false
+        },
+        "nome": {
+            "type": "str",
+            "encrypted": false
+        },
+        "senha": {
+            "type": "str",
+            "encrypted": true
+        }
     },
-    "data": []
+    "data": [
+        {
+            "id": 1,
+            "nome": "marcoquinhos",
+            "senha": "7M7l",
+            "_id": "2ce20d6a-b96b-48a6-b91d-4c96b84849f7",
+            "_created_at": "2026-04-09T18:51:50.363752",
+            "_updated_at": "2026-04-09T18:53:50.865216"
+        }
+    ]
 }
