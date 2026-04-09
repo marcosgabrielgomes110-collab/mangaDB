@@ -1,2 +1,0 @@
-# mangaDB
-projeto pessoal 

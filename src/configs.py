@@ -1,6 +1,5 @@
-import os
-import sys
 import json
+import sys
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -16,9 +15,11 @@ if not CONFIGPATH.exists():
     with open(CONFIGPATH, 'w') as f:
         json.dump({"projects": []}, f)
 
+
 def get_config():
     with open(CONFIGPATH, 'r') as f:
         return json.load(f)
+
 
 def save_config(config):
     with open(CONFIGPATH, 'w') as f:
