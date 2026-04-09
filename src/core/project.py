@@ -12,9 +12,10 @@ from configs import DATAPATH
 from configs import get_config, save_config
 
 class Project():
-    def __init__(self, name: str):
+    def __init__(self, name: str, password: str = None):
         self.id = uuid.uuid4()
         self.name = name    
+        self.password = password
 
     def new_project(self):
         # procurar a pasta path
@@ -25,7 +26,7 @@ class Project():
             return
         else:
             path.mkdir()
-            config["projects"].append({"name": self.name, "id": str(self.id)})
+            config["projects"].append({"name": self.name, "id": str(self.id), "password": self.password})
             save_config(config)
             print(f"Projeto {self.name} criado com sucesso!")
             
@@ -48,5 +49,22 @@ class Project():
         else:
             print("Projeto nao existe")
             return
+
+    def open_project(self):
+        config = get_config()
+        # Procura o projeto pelo nome
+        project_entry = next((p for p in config["projects"] if p["name"] == self.name), None)
+        
+        if not project_entry:
+            print(f"Projeto {self.name} não encontrado.")
+            return None
+            
+        if project_entry["password"] == self.password:
+            self.id = uuid.UUID(project_entry["id"])
+            print(f"Projeto {self.name} aberto com sucesso!")
+            return self
+        else:
+            print("Senha incorreta.")
+            return None
     
     
