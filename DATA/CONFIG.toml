@@ -1,12 +1,2 @@
 # Arquivo de configuração MangoDB
 
-[[projects]]
-name = "marcos"
-id = "d2af9fa0-19d1-420b-88aa-1ec4b834ab3c"
-password = "ddfcd6f752faf5e5ba65da9c6e1dbc5be379156eccc152a098ebe52f74d1fd52"
-
-[[projects]]
-name = "marcos"
-id = "d1e2004f-3bbb-4ec3-a51d-f46563548b0a"
-password = "ddfcd6f752faf5e5ba65da9c6e1dbc5be379156eccc152a098ebe52f74d1fd52"
-

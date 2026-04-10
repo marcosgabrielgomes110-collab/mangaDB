@@ -45,6 +45,20 @@ class MangaShell:
                 self.project = None
             else:
                 log_info("Você já está na home.")
+        elif cmd == "test":
+            from src.core.tests import run_tests
+            run_tests()
+        elif cmd == "clearcache":
+            import shutil
+            from src.configs import CACHEPATH
+            from src.core.utils import log_success, log_error
+            try:
+                if CACHEPATH.exists():
+                    shutil.rmtree(CACHEPATH, ignore_errors=True)
+                CACHEPATH.mkdir(parents=True, exist_ok=True)
+                log_success("Cache do sistema limpo com sucesso.")
+            except Exception as e:
+                log_error(f"Não foi possível limpar o cache: {e}")
 
         # Comandos de projeto
         elif cmd == "newp":
@@ -106,7 +120,9 @@ class MangaShell:
         print("  delr   - Deletar registro por ID")
         
         print(f"\n{Colors.OKCYAN}[ SISTEMA ]{Colors.ENDC}")
-        print("  home   - Sair do projeto atual")
-        print("  clear  - Limpar o terminal")
-        print("  exit   - Fechar o MangaDB")
+        print("  home       - Sair do projeto atual")
+        print("  test       - Rodar suíte de testes do DB")
+        print("  clearcache - Limpar o cache do sistema")
+        print("  clear      - Limpar o terminal")
+        print("  exit       - Fechar o MangaDB")
         print()
