@@ -1,7 +1,7 @@
-# Logica de execucao dos comandos do CLI
 import os
 from src.core.project import Project
 from src.core.tables import Table
+from src.core.utils import log_success, log_error, log_info, log_warning, Colors
 
 
 def convert_value(raw, col_type):
@@ -26,9 +26,9 @@ def find_record_id(table, partial_id):
     if len(matches) == 1:
         return matches[0]["_id"]
     if len(matches) == 0:
-        print("Registro nao encontrado.")
+        log_error("Registro nao encontrado.")
     else:
-        print("ID ambiguo, forneca mais caracteres.")
+        log_warning("ID ambiguo, forneca mais caracteres.")
     return None
 
 
@@ -36,7 +36,7 @@ def display_record(rec):
     """Exibe registro ocultando campos internos"""
     rid = rec.get("_id", "?")[:8]
     campos = {k: v for k, v in rec.items() if not k.startswith("_")}
-    print(f"  [{rid}] {campos}")
+    print(f"  {Colors.BOLD}[{rid}]{Colors.ENDC} {campos}")
 
 
 class ProjectHandler:
@@ -81,10 +81,11 @@ class TableHandler:
     def list(project):
         tables = project.list_tables()
         if tables:
+            log_info("Tabelas encontradas:")
             for t in tables:
-                print(f"  {t}")
+                print(f"  {Colors.BOLD}- {t}{Colors.ENDC}")
         else:
-            print("Nenhuma tabela.")
+            log_warning("Nenhuma tabela encontrada neste projeto.")
 
     @staticmethod
     def show(project):
@@ -92,16 +93,21 @@ class TableHandler:
         try:
             content = Table(project, name).show()
             schema = content["schema"]
-            # Exibe o schema de forma clara
-            schema_str = ", ".join([f"{k}:{v['type']}{'(enc)' if v['encrypted'] else ''}" for k, v in schema.items()])
-            print(f"Schema: {schema_str}")
+            # Exibe o schema de forma clara com cores
+            schema_parts = []
+            for k, v in schema.items():
+                enc_tag = f" {Colors.OKBLUE}(enc){Colors.ENDC}" if v['encrypted'] else ""
+                schema_parts.append(f"{Colors.BOLD}{k}{Colors.ENDC}:{v['type']}{enc_tag}")
+            
+            print(f"{Colors.OKCYAN}Schema:{Colors.ENDC} {' | '.join(schema_parts)}")
             
             if not content["data"]:
-                print("Sem registros.")
-            for rec in content["data"]:
-                display_record(rec)
+                log_info("Tabela sem registros.")
+            else:
+                for rec in content["data"]:
+                    display_record(rec)
         except FileNotFoundError:
-            print(f"Tabela '{name}' nao encontrada.")
+            log_error(f"Tabela '{name}' nao encontrada.")
 
     @staticmethod
     def delete(project):
@@ -117,7 +123,7 @@ class RecordHandler:
             t = Table(project, name)
             schema = t.show()["schema"]
         except FileNotFoundError:
-            print(f"Tabela '{name}' nao encontrada.")
+            log_error(f"Tabela '{name}' nao encontrada.")
             return
 
         record = {}
@@ -126,12 +132,12 @@ class RecordHandler:
             raw = input(f"  {col} ({col_type}): ")
             value = convert_value(raw, col_type)
             if value is None:
-                print(f"Valor invalido para '{col_type}'.")
+                log_error(f"Valor invalido para o tipo '{col_type}'.")
                 break
             record[col] = value
         else:
             if t.insert(record, project.password):
-                print("Registro inserido.")
+                log_success("Registro inserido com sucesso.")
 
     @staticmethod
     def query(project):
@@ -140,7 +146,7 @@ class RecordHandler:
             t = Table(project, name)
             schema = t.show()["schema"]
         except FileNotFoundError:
-            print(f"Tabela '{name}' nao encontrada.")
+            log_error(f"Tabela '{name}' nao encontrada.")
             return
 
         filtro = input("Filtro (campo=valor, vazio para todos): ").strip()
@@ -150,16 +156,16 @@ class RecordHandler:
             if len(parts) == 2:
                 key = parts[0].strip()
                 val = parts[1].strip()
-                # converter valor do filtro para comparacao correta
                 if key in schema:
                     val = convert_value(val, schema[key]["type"])
                 where = {key: val}
 
         results = t.select(project.password, where=where)
         if not results:
-            print("Sem resultados.")
-        for rec in results:
-            display_record(rec)
+            log_info("Nenhum resultado encontrado.")
+        else:
+            for rec in results:
+                display_record(rec)
 
     @staticmethod
     def update(project):
@@ -168,7 +174,7 @@ class RecordHandler:
             t = Table(project, name)
             schema = t.show()["schema"]
         except FileNotFoundError:
-            print(f"Tabela '{name}' nao encontrada.")
+            log_error(f"Tabela '{name}' nao encontrada.")
             return
 
         partial = input("ID do registro: ")
@@ -183,17 +189,17 @@ class RecordHandler:
             if not campo:
                 break
             if campo not in schema:
-                print(f"  Campo '{campo}' nao existe no schema.")
+                log_warning(f"Campo '{campo}' nao existe no schema.")
                 continue
             valor = input("  valor: ")
             converted = convert_value(valor, schema[campo]["type"])
             if converted is None:
-                print(f"  Valor invalido para '{schema[campo]['type']}'.")
+                log_error(f"Valor invalido para '{schema[campo]['type']}'.")
                 continue
             updates[campo] = converted
 
         if updates and t.update_record(record_id, updates, project.password):
-            print("Registro atualizado.")
+            log_success("Registro atualizado com sucesso.")
 
     @staticmethod
     def delete(project):
@@ -201,7 +207,7 @@ class RecordHandler:
         try:
             t = Table(project, name)
         except FileNotFoundError:
-            print(f"Tabela '{name}' nao encontrada.")
+            log_error(f"Tabela '{name}' nao encontrada.")
             return
 
         partial = input("ID do registro: ")
@@ -210,4 +216,4 @@ class RecordHandler:
             return
 
         if t.delete_record(record_id):
-            print("Registro removido.")
+            log_success("Registro removido com sucesso.")

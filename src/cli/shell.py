@@ -1,6 +1,7 @@
 # Gerenciamento do loop principal e despacho de comandos
 import os
 from src.cli.handlers import ProjectHandler, TableHandler, RecordHandler
+from src.core.utils import Colors, log_info, log_error, log_warning
 
 
 class MangaShell:
@@ -12,9 +13,12 @@ class MangaShell:
     def run(self):
         """Inicia o loop principal"""
         while True:
-            prefix = f" [{self.project.name}]" if self.project else ""
+            # Prompt colorido: MangoDB em ciano, projeto em azul negrito
+            p_name = f" {Colors.BOLD}{Colors.OKBLUE}[{self.project.name}]{Colors.ENDC}" if self.project else ""
+            prompt = f"{Colors.BOLD}{Colors.OKCYAN}MangaDB{Colors.ENDC}{p_name}> "
+            
             try:
-                cmd = input(f"MangaDB{prefix}> ").strip()
+                cmd = input(prompt).strip()
             except (EOFError, KeyboardInterrupt):
                 print()
                 break
@@ -37,10 +41,10 @@ class MangaShell:
             os.system('clear' if os.name == 'posix' else 'cls')
         elif cmd == "home":
             if self.project:
-                print(f"Projeto '{self.project.name}' fechado.")
+                log_info(f"Projeto '{self.project.name}' fechado.")
                 self.project = None
             else:
-                print("Nenhum projeto aberto.")
+                log_info("Você já está na home.")
 
         # Comandos de projeto
         elif cmd == "newp":
@@ -57,7 +61,7 @@ class MangaShell:
         # Comandos que exigem projeto aberto
         elif cmd in ("newt", "listt", "showt", "delt", "insert", "query", "update", "delr"):
             if not self.project:
-                print("Nenhum projeto aberto.")
+                log_error("Erro: Nenhum projeto aberto.")
                 return
 
             if cmd == "newt":
@@ -77,26 +81,32 @@ class MangaShell:
             elif cmd == "delr":
                 RecordHandler.delete(self.project)
         else:
-            print(f"Comando desconhecido: {cmd}. Digite 'help' para ver os comandos.")
+            log_warning(f"Comando desconhecido: '{cmd}'. Digite 'help'.")
 
     def _show_help(self):
-        """Exibe comandos disponiveis"""
-        print("  --- PROJETOS ---")
-        print("  newp   - criar projeto")
-        print("  delp   - deletar projeto")
-        print("  openp  - abrir projeto")
-        print("  listp  - listar projetos")
-        print("  --- TABELAS ---")
-        print("  newt   - criar tabela")
-        print("  listt  - listar tabelas")
-        print("  showt  - mostrar tabela")
-        print("  delt   - deletar tabela")
-        print("  --- REGISTROS ---")
-        print("  insert - inserir registro")
-        print("  query  - buscar registros")
-        print("  update - atualizar registro")
-        print("  delr   - deletar registro")
-        print("  --- SISTEMA ---")
-        print("  home   - fechar projeto (voltar ao inicio)")
-        print("  clear  - limpar tela")
-        print("  exit   - sair")
+        """Exibe comandos disponiveis com formatação limpa"""
+        print(f"\n{Colors.BOLD}{Colors.UNDERLINE}COMANDOS DISPONÍVEIS{Colors.ENDC}")
+        
+        print(f"\n{Colors.OKBLUE}[ PROJETOS ]{Colors.ENDC}")
+        print("  newp   - Criar novo projeto")
+        print("  delp   - Deletar um projeto")
+        print("  openp  - Abrir projeto existente")
+        print("  listp  - Listar todos os projetos")
+        
+        print(f"\n{Colors.OKGREEN}[ TABELAS ]{Colors.ENDC}")
+        print("  newt   - Criar nova tabela com schema")
+        print("  listt  - Listar tabelas do projeto")
+        print("  showt  - Visualizar schema e dados")
+        print("  delt   - Deletar uma tabela")
+        
+        print(f"\n{Colors.WARNING}[ REGISTROS ]{Colors.ENDC}")
+        print("  insert - Inserir novo registro")
+        print("  query  - Buscar registros (filtros suportados)")
+        print("  update - Atualizar registro por ID")
+        print("  delr   - Deletar registro por ID")
+        
+        print(f"\n{Colors.OKCYAN}[ SISTEMA ]{Colors.ENDC}")
+        print("  home   - Sair do projeto atual")
+        print("  clear  - Limpar o terminal")
+        print("  exit   - Fechar o MangaDB")
+        print()

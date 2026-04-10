@@ -1,10 +1,9 @@
-# CRUD de tabelas: cada tabela e um arquivo .json dentro da pasta do projeto
-# Formato: {"schema": {"col": {"type": "tipo", "encrypted": bool}, ...}, "data": [{...}, ...]}
 import json
 import uuid
 import base64
 import hashlib
 from datetime import datetime
+from core.utils import log_success, log_error, log_info, log_warning, Colors
 
 
 class Table:
@@ -19,19 +18,19 @@ class Table:
     def create(self, schema: dict):
         """Cria arquivo da tabela com schema e lista de dados vazia"""
         if self.path.exists():
-            print(f"Tabela '{self.name}' ja existe.")
+            log_error(f"Tabela '{self.name}' ja existe.")
             return
         with open(self.path, 'w') as f:
             json.dump({"schema": schema, "data": []}, f, indent=4)
-        print(f"Tabela '{self.name}' criada.")
+        log_success(f"Tabela '{self.name}' criada com sucesso.")
 
     def delete(self):
         """Remove o arquivo da tabela"""
         if not self.path.exists():
-            print(f"Tabela '{self.name}' nao encontrada.")
+            log_error(f"Tabela '{self.name}' nao encontrada.")
             return
         self.path.unlink()
-        print(f"Tabela '{self.name}' removida.")
+        log_success(f"Tabela '{self.name}' removida.")
 
     def insert(self, record: dict, password: str):
         """Valida e insere registro com criptografia se definida no schema"""
@@ -39,7 +38,7 @@ class Table:
 
         error = self._validate_record(record, table["schema"])
         if error:
-            print(f"Erro: {error}")
+            log_error(f"Erro de validação: {error}")
             return False
 
         # Gera metadados internos
@@ -89,7 +88,7 @@ class Table:
                 self._write(table)
                 return True
 
-        print(f"Registro '{record_id}' nao encontrado.")
+        log_error(f"Registro '{record_id}' nao encontrado.")
         return False
 
     def delete_record(self, record_id):
@@ -102,7 +101,7 @@ class Table:
                 self._write(table)
                 return True
 
-        print(f"Registro '{record_id}' nao encontrado.")
+        log_error(f"Registro '{record_id}' nao encontrado.")
         return False
 
     def show(self):
