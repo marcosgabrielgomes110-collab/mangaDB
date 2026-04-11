@@ -217,3 +217,114 @@ class RecordHandler:
 
         if t.delete_record(record_id):
             log_success("Registro removido com sucesso.")
+
+
+class SystemHandler:
+    @staticmethod
+    def show_stats(project=None):
+        """Exibe estatísticas globais ou do projeto atual"""
+        from src.configs import get_config
+        config = get_config()
+        
+        print(f"\n{Colors.BOLD}{Colors.UNDERLINE}ESTATÍSTICAS DO SISTEMA{Colors.ENDC}")
+        print(f"  Projetos registrados: {len(config['projects'])}")
+        
+        if project:
+            print(f"\n{Colors.OKBLUE}[ PROJETO ATUAL: {project.name} ]{Colors.ENDC}")
+            tables = project.list_tables()
+            print(f"  Tabelas: {len(tables)}")
+            total_records = 0
+            for t_name in tables:
+                t = Table(project, t_name)
+                total_records += len(t.show()["data"])
+            print(f"  Total de registros: {total_records}")
+        print()
+
+    @staticmethod
+    def start_server():
+        """Inicia a API Web em background e salva o PID"""
+        import subprocess
+        import sys
+        import time
+        from src.configs import DATAPATH, API_HOST, API_PORT
+        
+        pid_file = DATAPATH / "api.pid"
+        
+        if pid_file.exists():
+            try:
+                pid = int(pid_file.read_text())
+                os.kill(pid, 0) # Verifica se processo existe
+                log_warning(f"Servidor já parece estar rodando (PID: {pid}).")
+                return
+            except (ProcessLookupError, ValueError):
+                pid_file.unlink()
+
+        log_info(f"Iniciando MangaDB Web API em background ({API_HOST}:{API_PORT})...")
+        
+        try:
+            # Roda como processo filho desacoplado
+            process = subprocess.Popen(
+                [sys.executable, "-m", "src.api.app"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True
+            )
+            pid_file.write_text(str(process.pid))
+            time.sleep(1) # Aguarda inicialização
+            log_success(f"Servidor iniciado com sucesso! (PID: {process.pid})")
+            log_info(f"Acesse: http://{API_HOST}:{API_PORT}/docs para documentação.")
+        except Exception as e:
+            log_error(f"Erro ao iniciar servidor: {e}")
+
+    @staticmethod
+    def stop_server():
+        """Para o servidor usando o PID salvo"""
+        from src.configs import DATAPATH
+        pid_file = DATAPATH / "api.pid"
+        
+        if not pid_file.exists():
+            log_error("Arquivo de PID não encontrado. O servidor está rodando?")
+            return
+
+        try:
+            pid = int(pid_file.read_text())
+            os.kill(pid, 15) # SIGTERM
+            pid_file.unlink()
+            log_success(f"Servidor (PID: {pid}) parado com sucesso.")
+        except ProcessLookupError:
+            log_error("Processo não encontrado. Limpando arquivo de PID residual.")
+            pid_file.unlink()
+        except Exception as e:
+            log_error(f"Erro ao parar servidor: {e}")
+
+    @staticmethod
+    def server_status():
+        """Verifica se o servidor está ativo e lista endpoints"""
+        from src.configs import DATAPATH, API_HOST, API_PORT
+        pid_file = DATAPATH / "api.pid"
+        
+        status = f"{Colors.FAIL}OFFLINE{Colors.ENDC}"
+        pid_info = ""
+        
+        if pid_file.exists():
+            try:
+                pid = int(pid_file.read_text())
+                os.kill(pid, 0)
+                status = f"{Colors.OKGREEN}ONLINE{Colors.ENDC}"
+                pid_info = f" (PID: {pid})"
+            except (ProcessLookupError, ValueError):
+                pass
+
+        print(f"\n{Colors.BOLD}STATUS DA API WEB:{Colors.ENDC} {status}{pid_info}")
+        print(f"URL Base: http://{API_HOST}:{API_PORT}")
+        
+        if "ONLINE" in status:
+            print(f"\n{Colors.BOLD}ENDPOINTS DISPONÍVEIS:{Colors.ENDC}")
+            print("  [POST]   /projects/{project}/auth")
+            print("  [GET]    /projects/{project}/tables")
+            print("  [POST]   /projects/{project}/tables/{table}/insert")
+            print("  [POST]   /projects/{project}/tables/{table}/query")
+            print("  [PUT]    /projects/{project}/tables/{table}/{id}")
+            print("  [DELETE] /projects/{project}/tables/{table}/{id}")
+            print(f"\n{Colors.OKCYAN}Documentação Swagger:{Colors.ENDC} http://{API_HOST}:{API_PORT}/docs")
+        print()

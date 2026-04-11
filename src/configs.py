@@ -15,8 +15,13 @@ DATAPATH = PROJECT_ROOT / "DATA"
 CONFIGPATH = DATAPATH / "CONFIG.toml"
 CACHEPATH = DATAPATH / "CACHE"
 
-# Centraliza todos os __pycache__ do Python neste diretorio
-os.environ["PYTHONPYCACHEPREFIX"] = str(CACHEPATH)
+# Configurações globais da API Web
+API_HOST = os.getenv("MANGADB_HOST", "0.0.0.0")
+API_PORT = int(os.getenv("MANGADB_PORT", 8000))
+API_DEBUG = os.getenv("MANGADB_DEBUG", "True").lower() == "true"
+ALLOWED_ORIGINS = ["*"] # Ajuste para segurança em produção
+
+
 
 # Garante que diretorios base existam
 for path in [DATAPATH, CACHEPATH]:

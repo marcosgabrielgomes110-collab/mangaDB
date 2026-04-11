@@ -1,7 +1,7 @@
 # Gerenciamento do loop principal e despacho de comandos
 import os
-from src.cli.handlers import ProjectHandler, TableHandler, RecordHandler
-from src.core.utils import Colors, log_info, log_error, log_warning
+from src.cli.handlers import ProjectHandler, TableHandler, RecordHandler, SystemHandler
+from src.core.utils import Colors, log_info, log_error, log_warning, log_success
 
 
 class MangaShell:
@@ -39,6 +39,20 @@ class MangaShell:
             self._show_help()
         elif cmd == "clear":
             os.system('clear' if os.name == 'posix' else 'cls')
+        elif cmd == "stats":
+            SystemHandler.show_stats(self.project)
+        elif cmd.startswith("server"):
+            parts = cmd.split()
+            sub = parts[1] if len(parts) > 1 else "status"
+            
+            if sub == "start":
+                SystemHandler.start_server()
+            elif sub == "stop":
+                SystemHandler.stop_server()
+            elif sub in ("status", "info"):
+                SystemHandler.server_status()
+            else:
+                log_warning("Uso: server [start|stop|status]")
         elif cmd == "home":
             if self.project:
                 log_info(f"Projeto '{self.project.name}' fechado.")
@@ -46,12 +60,11 @@ class MangaShell:
             else:
                 log_info("Você já está na home.")
         elif cmd == "test":
-            from src.core.tests import run_tests
-            run_tests()
+            log_info("Iniciando suíte de testes robusta (Pytest)...")
+            os.system("pytest -v")
         elif cmd == "clearcache":
             import shutil
             from src.configs import CACHEPATH
-            from src.core.utils import log_success, log_error
             try:
                 if CACHEPATH.exists():
                     shutil.rmtree(CACHEPATH, ignore_errors=True)
@@ -120,9 +133,13 @@ class MangaShell:
         print("  delr   - Deletar registro por ID")
         
         print(f"\n{Colors.OKCYAN}[ SISTEMA ]{Colors.ENDC}")
-        print("  home       - Sair do projeto atual")
-        print("  test       - Rodar suíte de testes do DB")
-        print("  clearcache - Limpar o cache do sistema")
-        print("  clear      - Limpar o terminal")
-        print("  exit       - Fechar o MangaDB")
+        print("  stats           - Estatísticas do banco/projeto")
+        print("  server start    - Iniciar servidor (background)")
+        print("  server stop     - Parar servidor (usando PID)")
+        print("  server status   - Status e endpoints da API")
+        print("  home            - Sair do projeto atual")
+        print("  test            - Rodar suíte de testes (Pytest)")
+        print("  clearcache      - Limpar o cache do sistema")
+        print("  clear           - Limpar o terminal")
+        print("  exit            - Fechar o MangaDB")
         print()

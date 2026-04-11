@@ -1,0 +1,9 @@
+# MangaDB - Dependências do Projeto
+fastapi==0.110.0
+uvicorn==0.27.1
+tomli==2.0.1; python_version < '3.11'
+python-multipart==0.0.9
+
+# Ferramentas de Teste
+pytest==8.1.1
+httpx==0.27.0
