@@ -54,6 +54,15 @@ class Project:
             log_error("Projeto nao encontrado.")
             return
 
+        if entry:
+            if not self.password:
+                log_error("Senha nao fornecida.")
+                return
+            pw_hash = hashlib.sha256(self.password.encode()).hexdigest()
+            if entry["password"] != pw_hash:
+                log_error("Senha incorreta.")
+                return
+
         if self.path.exists():
             shutil.rmtree(self.path)
 

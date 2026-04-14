@@ -49,7 +49,8 @@ class ProjectHandler:
     @staticmethod
     def delete():
         name = input("Nome: ")
-        Project(name).delete_project()
+        password = input("Senha: ")
+        Project(name, password).delete_project()
 
     @staticmethod
     def open():
