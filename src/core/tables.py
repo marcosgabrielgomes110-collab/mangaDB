@@ -2,8 +2,12 @@ import json
 import uuid
 import base64
 import hashlib
+import os
 from datetime import datetime
 from core.utils import log_success, log_error, log_info, log_warning, Colors
+
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.backends import default_backend
 
 
 class Table:
@@ -108,10 +112,12 @@ class Table:
         """Retorna dict completo da tabela (schema + raw data)"""
         return self._read()
 
-    def _process_record(self, record, schema, password, encrypt=True):
-        """Criptografa ou descriptografa campos conforme o schema"""
+    def _process_record(self, record, schema, enc_password: str, encrypt=True):
+        """Criptografa ou descriptografa campos conforme o schema."""
         processed = record.copy()
-        key = hashlib.sha256(password.encode()).digest()
+        if not enc_password:
+            return processed
+        key = self._get_aes_key(enc_password)
 
         for col, info in schema.items():
             if info.get("encrypted") and col in processed:
@@ -121,22 +127,37 @@ class Table:
                 else:
                     try:
                         decrypted = self._decrypt(val, key)
-                        # Tenta converter de volta para o tipo original se possivel
                         processed[col] = self._restore_type(decrypted, info["type"])
-                    except:
-                        pass # Mantem como esta se falhar
+                    except Exception:
+                        pass
         return processed
 
-    def _crypt(self, text, key):
-        """Criptografia simples XOR + Base64"""
-        data = text.encode()
-        xor_data = bytes([b ^ key[i % len(key)] for i, b in enumerate(data)])
-        return base64.b64encode(xor_data).decode()
+    def _get_aes_key(self, password: str) -> bytes:
+        """Deriva uma chave AES-256 de 32 bytes da senha de criptografia."""
+        return hashlib.sha256(password.encode()).digest()
 
-    def _decrypt(self, encoded_text, key):
-        """Descriptografia simples XOR + Base64"""
-        data = base64.b64decode(encoded_text)
-        return bytes([b ^ key[i % len(key)] for i, b in enumerate(data)]).decode()
+    def _crypt(self, text: str, key: bytes) -> str:
+        """Criptografia AES-256-GCM + Base64 (nonce + tag + ciphertext)."""
+        data = text.encode('utf-8')
+        nonce = os.urandom(12)  # 96 bits para GCM
+        cipher = Cipher(algorithms.AES(key), modes.GCM(nonce), backend=default_backend())
+        encryptor = cipher.encryptor()
+        ciphertext = encryptor.update(data) + encryptor.finalize()
+        tag = encryptor.tag  # 16 bytes
+        # Formato: nonce (12) + tag (16) + ciphertext
+        combined = nonce + tag + ciphertext
+        return base64.b64encode(combined).decode('utf-8')
+
+    def _decrypt(self, encoded_text: str, key: bytes) -> str:
+        """Descriptografia AES-256-GCM (nonce + tag + ciphertext)."""
+        combined = base64.b64decode(encoded_text)
+        nonce = combined[:12]
+        tag = combined[12:28]
+        ciphertext = combined[28:]
+        cipher = Cipher(algorithms.AES(key), modes.GCM(nonce, tag), backend=default_backend())
+        decryptor = cipher.decryptor()
+        plaintext = decryptor.update(ciphertext) + decryptor.finalize()
+        return plaintext.decode('utf-8')
 
     def _restore_type(self, value, expected):
         """Restaura tipo apos descriptografia"""

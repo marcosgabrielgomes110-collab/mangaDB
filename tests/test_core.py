@@ -38,23 +38,23 @@ def test_table_crud(temp_project):
     
     # Insert
     record = {"name": "marcos", "secret": "shhh"}
-    assert t.insert(record, p.password)
-    
+    assert t.insert(record, p.enc_password)
+
     # Select & Decrypt
-    results = t.select(p.password, where={"name": "marcos"})
+    results = t.select(p.enc_password, where={"name": "marcos"})
     assert len(results) == 1
     assert results[0]["secret"] == "shhh"
     
     # Update
     rid = results[0]["_id"]
-    assert t.update_record(rid, {"secret": "new_secret"}, p.password)
-    
-    updated = t.select(p.password, where={"_id": rid})
+    assert t.update_record(rid, {"secret": "new_secret"}, p.enc_password)
+
+    updated = t.select(p.enc_password, where={"_id": rid})
     assert updated[0]["secret"] == "new_secret"
-    
+
     # Delete Record
     assert t.delete_record(rid)
-    assert len(t.select(p.password)) == 0
+    assert len(t.select(p.enc_password)) == 0
     
     # Delete Table
     t.delete()

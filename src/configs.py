@@ -46,11 +46,13 @@ def get_config():
         return {"projects": []}
 
 def save_config(config):
-    """Persiste dict no CONFIG.toml (serializacao manual basica)"""
+    """Persiste dict no CONFIG.toml (serializacao manual basica)."""
     with open(CONFIGPATH, 'w') as f:
         f.write("# Arquivo de configuração MangoDB\n\n")
         for project in config.get("projects", []):
             f.write("[[projects]]\n")
             f.write(f'name = "{project["name"]}"\n')
             f.write(f'id = "{project["id"]}"\n')
-            f.write(f'password = "{project["password"]}"\n\n')
+            f.write(f'password = "{project["password"]}"\n')
+            enc_pw = project.get("enc_password", project["password"])
+            f.write(f'enc_password = "{enc_pw}"\n\n')

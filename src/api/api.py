@@ -10,11 +10,12 @@ from src.core.tables import Table
 
 
 class Mangadb:
-    """API local para integração programática com o MangaDB"""
-    
-    def __init__(self, project_name, password, table_name=None):
+    """API local para integração programática com o MangaDB."""
+
+    def __init__(self, project_name, password, enc_password=None, table_name=None):
         self.project_name = project_name
         self.password = password
+        self.enc_password = enc_password if enc_password else password
         self.table_name = table_name
         self.project = None
         self.table = None
@@ -25,9 +26,9 @@ class Mangadb:
         return self._connected and self.project is not None
 
     def connect(self):
-        """Autentica no projeto e prepara a conexão"""
+        """Autentica no projeto e prepara a conexão."""
         try:
-            p = Project(self.project_name, self.password)
+            p = Project(self.project_name, self.password, self.enc_password)
             self.project = p.open_project()
             if not self.project:
                 self._connected = False
@@ -62,19 +63,19 @@ class Mangadb:
         return True
 
     def insert(self, data):
-        """Insere um registro na tabela ativa"""
+        """Insere um registro na tabela ativa."""
         self._check_table()
-        return self.table.insert(data, self.password)
+        return self.table.insert(data, self.enc_password)
 
     def query(self, where=None):
-        """Busca registros na tabela ativa"""
+        """Busca registros na tabela ativa."""
         self._check_table()
-        return self.table.select(self.password, where=where)
+        return self.table.select(self.enc_password, where=where)
 
     def update(self, record_id, updates):
-        """Atualiza um registro pelo ID"""
+        """Atualiza um registro pelo ID."""
         self._check_table()
-        return self.table.update_record(record_id, updates, self.password)
+        return self.table.update_record(record_id, updates, self.enc_password)
 
     def delete(self, record_id):
         """Deleta um registro pelo ID"""

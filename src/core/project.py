@@ -14,17 +14,18 @@ from core.utils import validate_name, log_success, log_error, log_info, log_warn
 
 
 class Project:
-    """Representa um projeto. Cada projeto e uma pasta isolada em DATA/"""
+    """Representa um projeto. Cada projeto e uma pasta isolada em DATA/."""
 
-    def __init__(self, name: str, password: str = None):
+    def __init__(self, name: str, password: str = None, enc_password: str = None):
         self.id = uuid.uuid4()
         self.name = name
-        self.password = password
+        self.password = password  # Senha de autenticação
+        self.enc_password = enc_password  # Senha de criptografia (separada)
         self.is_authenticated = False
         self.path = DATAPATH / self.name
 
     def new_project(self):
-        """Cria pasta do projeto e registra no CONFIG.toml"""
+        """Cria pasta do projeto e registra no CONFIG.toml."""
         if not validate_name(self.name):
             log_error("Nome invalido. Use apenas letras, numeros e underscores.")
             return
@@ -35,12 +36,15 @@ class Project:
             return
 
         self.path.mkdir(parents=True)
-        # Salva o hash da senha
         pw_hash = hashlib.sha256(self.password.encode()).hexdigest()
+        # Hash da senha de criptografia (se fornecida, senão usa a mesma)
+        enc_pw = self.enc_password if self.enc_password else self.password
+        enc_hash = hashlib.sha256(enc_pw.encode()).hexdigest()
         config["projects"].append({
             "name": self.name,
             "id": str(self.id),
-            "password": pw_hash
+            "password": pw_hash,
+            "enc_password": enc_hash
         })
         save_config(config)
         log_success(f"Projeto '{self.name}' criado com sucesso.")
@@ -73,7 +77,7 @@ class Project:
         log_success(f"Projeto '{self.name}' removido.")
 
     def open_project(self):
-        """Valida senha e retorna instancia autenticada (ou None)"""
+        """Valida senha e retorna instancia autenticada (ou None)."""
         config = get_config()
         entry = next((p for p in config["projects"] if p["name"] == self.name), None)
 
@@ -81,15 +85,23 @@ class Project:
             log_error(f"Projeto '{self.name}' nao encontrado.")
             return None
 
-        # Valida contra o hash salvo
         pw_hash = hashlib.sha256(self.password.encode()).hexdigest()
         if entry["password"] != pw_hash:
             log_error("Senha incorreta.")
             return None
 
-        # Recupera o id original do projeto
         self.id = uuid.UUID(entry["id"])
         self.is_authenticated = True
+        # Carrega senha de criptografia (pode ser diferente da autenticação)
+        if self.enc_password:
+            enc_hash = hashlib.sha256(self.enc_password.encode()).hexdigest()
+            stored_enc = entry.get("enc_password", entry["password"])
+            if enc_hash != stored_enc:
+                log_error("Senha de criptografia incorreta.")
+                return None
+        else:
+            self.enc_password = self.password
+
         log_success(f"Projeto '{self.name}' aberto.")
         return self
 

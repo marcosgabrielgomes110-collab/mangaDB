@@ -13,7 +13,7 @@ def test_mangadb_local_api(temp_project):
     t.create({"data": {"type": "str", "encrypted": False}})
     
     # Use API
-    db = Mangadb(name, password, table_name)
+    db = Mangadb(name, password, password, table_name)
     assert db.connect()
     
     # Insert

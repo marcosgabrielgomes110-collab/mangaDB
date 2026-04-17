@@ -43,20 +43,26 @@ class ProjectHandler:
     @staticmethod
     def create():
         name = input("Nome: ")
-        password = input("Senha: ")
-        Project(name, password).new_project()
+        password = input("Senha de autenticacao: ")
+        enc_password = input("Senha de criptografia (ENTER para usar a mesma): ")
+        if not enc_password:
+            enc_password = password
+        Project(name, password, enc_password).new_project()
 
     @staticmethod
     def delete():
         name = input("Nome: ")
-        password = input("Senha: ")
+        password = input("Senha de autenticacao: ")
         Project(name, password).delete_project()
 
     @staticmethod
     def open():
         name = input("Nome: ")
-        password = input("Senha: ")
-        return Project(name, password).open_project()
+        password = input("Senha de autenticacao: ")
+        enc_password = input("Senha de criptografia (ENTER para usar a mesma): ")
+        if not enc_password:
+            enc_password = password
+        return Project(name, password, enc_password).open_project()
 
     @staticmethod
     def list():
@@ -137,7 +143,7 @@ class RecordHandler:
                 break
             record[col] = value
         else:
-            if t.insert(record, project.password):
+            if t.insert(record, project.enc_password):
                 log_success("Registro inserido com sucesso.")
 
     @staticmethod
@@ -161,7 +167,7 @@ class RecordHandler:
                     val = convert_value(val, schema[key]["type"])
                 where = {key: val}
 
-        results = t.select(project.password, where=where)
+        results = t.select(project.enc_password, where=where)
         if not results:
             log_info("Nenhum resultado encontrado.")
         else:
@@ -199,7 +205,7 @@ class RecordHandler:
                 continue
             updates[campo] = converted
 
-        if updates and t.update_record(record_id, updates, project.password):
+        if updates and t.update_record(record_id, updates, project.enc_password):
             log_success("Registro atualizado com sucesso.")
 
     @staticmethod
