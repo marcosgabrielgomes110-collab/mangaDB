@@ -80,11 +80,17 @@ async def query_records(
     project: str,
     table: str,
     where: Optional[Dict[str, Any]] = Body(default=None),
+    query: Optional[str] = Body(default=None, description="Query rica: ex 'idade>18 AND nome LIKE Mar'"),
     x_project_password: str = Header(...)
 ):
-    """Busca registros com filtros opcionais"""
+    """Busca registros com filtros opcionais.
+
+    Aceita dois modos de filtro (podem ser combinados):
+    - where: {"campo": "valor"} — filtro exato legado
+    - query: "campo>valor AND campo LIKE texto" — queries ricas
+    """
     db = get_db(project, table, x_project_password)
-    results = db.query(where=where)
+    results = db.query(where=where, query_str=query)
     return {"count": len(results), "results": results}
 
 

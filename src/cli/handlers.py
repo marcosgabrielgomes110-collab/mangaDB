@@ -156,21 +156,25 @@ class RecordHandler:
             log_error(f"Tabela '{name}' nao encontrada.")
             return
 
-        filtro = input("Filtro (campo=valor, vazio para todos): ").strip()
-        where = None
-        if filtro:
-            parts = filtro.split("=", 1)
-            if len(parts) == 2:
-                key = parts[0].strip()
-                val = parts[1].strip()
-                if key in schema:
-                    val = convert_value(val, schema[key]["type"])
-                where = {key: val}
+        print(f"  {Colors.OKCYAN}Operadores: = != > < >= <= LIKE STARTS ENDS IN BETWEEN{Colors.ENDC}")
+        print(f"  {Colors.OKCYAN}Combinação: use AND ou vírgula  (ex: idade>18 AND nome LIKE Mar){Colors.ENDC}")
+        filtro = input("Filtro (vazio para todos): ").strip()
 
-        results = t.select(project.enc_password, where=where)
+        if not filtro:
+            results = t.select(project.enc_password)
+        else:
+            from src.core.query import parse_query
+            conditions = parse_query(filtro)
+            if conditions:
+                results = t.select(project.enc_password, conditions=conditions)
+            else:
+                log_error("Expressão de filtro inválida.")
+                return
+
         if not results:
             log_info("Nenhum resultado encontrado.")
         else:
+            log_info(f"{len(results)} registro(s) encontrado(s):")
             for rec in results:
                 display_record(rec)
 

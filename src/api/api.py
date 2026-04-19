@@ -67,10 +67,19 @@ class Mangadb:
         self._check_table()
         return self.table.insert(data, self.enc_password)
 
-    def query(self, where=None):
-        """Busca registros na tabela ativa."""
+    def query(self, where=None, query_str=None):
+        """Busca registros na tabela ativa.
+
+        Args:
+            where: Dict {campo: valor} para filtro exato (legado).
+            query_str: String de query rica (ex: "idade>18 AND nome LIKE Mar").
+        """
         self._check_table()
-        return self.table.select(self.enc_password, where=where)
+        conditions = None
+        if query_str:
+            from src.core.query import parse_query
+            conditions = parse_query(query_str)
+        return self.table.select(self.enc_password, where=where, conditions=conditions)
 
     def update(self, record_id, updates):
         """Atualiza um registro pelo ID."""

@@ -5,6 +5,7 @@ import hashlib
 import os
 from datetime import datetime
 from core.utils import log_success, log_error, log_info, log_warning, Colors
+from filelock import FileLock
 
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
@@ -56,21 +57,34 @@ class Table:
         self._write(table)
         return True
 
-    def select(self, password: str, where=None):
-        """Retorna registros descriptografados e filtrados"""
+    def select(self, password: str, where=None, conditions=None):
+        """Retorna registros descriptografados e filtrados.
+
+        Args:
+            password: Senha de criptografia para descriptografar campos.
+            where: Dict {campo: valor} para filtro exato (legado, retrocompatível).
+            conditions: Lista de Condition para queries ricas (>, <, LIKE, etc).
+        """
+        from core.query import Condition, apply_conditions
+
         table = self._read()
         schema = table["schema"]
-        
+
         # Descriptografa todos para busca e exibicao
         results = []
         for rec in table["data"]:
             results.append(self._process_record(rec, schema, password, encrypt=False))
 
+        # Filtro legado (dict {campo: valor})
         if where:
             results = [
                 r for r in results
                 if all(r.get(k) == v for k, v in where.items())
             ]
+
+        # Filtro rico (lista de Condition)
+        if conditions:
+            results = apply_conditions(results, conditions)
 
         return results
 
@@ -195,12 +209,19 @@ class Table:
             return True
         return isinstance(value, t if isinstance(t, tuple) else (t,))
 
-    def _read(self):
-        """Carrega tabela do disco"""
-        with open(self.path, 'r') as f:
-            return json.load(f)
+    @property
+    def _lock(self) -> FileLock:
+        """Lock de acesso exclusivo ao arquivo da tabela."""
+        return FileLock(str(self.path) + ".lock")
 
-    def _write(self, data):
-        """Persiste tabela no disco"""
-        with open(self.path, 'w') as f:
-            json.dump(data, f, indent=4)
+    def _read(self) -> dict:
+        """Carrega tabela do disco com lock de leitura."""
+        with self._lock:
+            with open(self.path, 'r') as f:
+                return json.load(f)
+
+    def _write(self, data: dict) -> None:
+        """Persiste tabela no disco com lock de escrita."""
+        with self._lock:
+            with open(self.path, 'w') as f:
+                json.dump(data, f, indent=4)
