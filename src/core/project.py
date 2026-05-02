@@ -1,31 +1,42 @@
-# Gerenciamento de projetos: criacao, exclusao, autenticacao e listagem
 import json
 import uuid
-import sys
+import os
 import shutil
 import hashlib
+import sys
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-sys.path.append(str(PROJECT_ROOT))
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.append(str(PROJECT_ROOT))
 
 from configs import DATAPATH, get_config, save_config
 from core.utils import validate_name, log_success, log_error, log_info, log_warning
 
+_PBKDF2_ROUNDS = 600000
+
+def _hash_password(password: str, salt: bytes | None = None) -> tuple[str, str]:
+    if salt is None:
+        salt = os.urandom(16)
+    h = hashlib.pbkdf2_hmac('sha256', password.encode(), salt, _PBKDF2_ROUNDS)
+    return salt.hex(), h.hex()
+
+def _verify_password(password: str, stored_salt_hex: str, stored_hash_hex: str) -> bool:
+    salt = bytes.fromhex(stored_salt_hex)
+    h = hashlib.pbkdf2_hmac('sha256', password.encode(), salt, _PBKDF2_ROUNDS)
+    return h.hex() == stored_hash_hex
+
 
 class Project:
-    """Representa um projeto. Cada projeto e uma pasta isolada em DATA/."""
-
     def __init__(self, name: str, password: str = None, enc_password: str = None):
         self.id = uuid.uuid4()
         self.name = name
-        self.password = password  # Senha de autenticação
-        self.enc_password = enc_password  # Senha de criptografia (separada)
+        self.password = password
+        self.enc_password = enc_password
         self.is_authenticated = False
         self.path = DATAPATH / self.name
 
     def new_project(self):
-        """Cria pasta do projeto e registra no CONFIG.toml."""
         if not validate_name(self.name):
             log_error("Nome invalido. Use apenas letras, numeros e underscores.")
             return
@@ -36,21 +47,25 @@ class Project:
             return
 
         self.path.mkdir(parents=True)
-        pw_hash = hashlib.sha256(self.password.encode()).hexdigest()
-        # Hash da senha de criptografia (se fornecida, senão usa a mesma)
+        pw_salt, pw_hash = _hash_password(self.password)
         enc_pw = self.enc_password if self.enc_password else self.password
-        enc_hash = hashlib.sha256(enc_pw.encode()).hexdigest()
+        enc_salt, enc_hash = _hash_password(enc_pw)
         config["projects"].append({
             "name": self.name,
             "id": str(self.id),
+            "password_salt": pw_salt,
             "password": pw_hash,
+            "enc_password_salt": enc_salt,
             "enc_password": enc_hash
         })
         save_config(config)
         log_success(f"Projeto '{self.name}' criado com sucesso.")
 
     def delete_project(self):
-        """Remove pasta e entrada do CONFIG.json"""
+        if not validate_name(self.name):
+            log_error("Nome invalido.")
+            return
+
         config = get_config()
         entry = next((p for p in config["projects"] if p["name"] == self.name), None)
 
@@ -62,8 +77,7 @@ class Project:
             if not self.password:
                 log_error("Senha nao fornecida.")
                 return
-            pw_hash = hashlib.sha256(self.password.encode()).hexdigest()
-            if entry["password"] != pw_hash:
+            if not _verify_password(self.password, entry.get("password_salt", ""), entry.get("password", "")):
                 log_error("Senha incorreta.")
                 return
 
@@ -77,7 +91,10 @@ class Project:
         log_success(f"Projeto '{self.name}' removido.")
 
     def open_project(self):
-        """Valida senha e retorna instancia autenticada (ou None)."""
+        if not validate_name(self.name):
+            log_error("Nome invalido.")
+            return None
+
         config = get_config()
         entry = next((p for p in config["projects"] if p["name"] == self.name), None)
 
@@ -85,18 +102,14 @@ class Project:
             log_error(f"Projeto '{self.name}' nao encontrado.")
             return None
 
-        pw_hash = hashlib.sha256(self.password.encode()).hexdigest()
-        if entry["password"] != pw_hash:
+        if not _verify_password(self.password, entry.get("password_salt", ""), entry.get("password", "")):
             log_error("Senha incorreta.")
             return None
 
         self.id = uuid.UUID(entry["id"])
         self.is_authenticated = True
-        # Carrega senha de criptografia (pode ser diferente da autenticação)
         if self.enc_password:
-            enc_hash = hashlib.sha256(self.enc_password.encode()).hexdigest()
-            stored_enc = entry.get("enc_password", entry["password"])
-            if enc_hash != stored_enc:
+            if not _verify_password(self.enc_password, entry.get("enc_password_salt", entry.get("password_salt", "")), entry.get("enc_password", entry.get("password", ""))):
                 log_error("Senha de criptografia incorreta.")
                 return None
         else:
@@ -107,17 +120,15 @@ class Project:
 
     @staticmethod
     def list_projects():
-        """Lista nomes de todos os projetos registrados"""
         config = get_config()
         if not config["projects"]:
             log_warning("Nenhum projeto encontrado.")
             return
-        log_info("Projetos disponíveis:")
+        log_info("Projetos disponiveis:")
         for p in config["projects"]:
             print(f"  - {p['name']}")
 
     def list_tables(self):
-        """Retorna nomes das tabelas (.json) dentro da pasta do projeto"""
         if not self.is_authenticated:
             return []
         return [f.stem for f in self.path.glob("*.json")]

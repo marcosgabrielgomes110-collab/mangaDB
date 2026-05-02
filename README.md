@@ -1,7 +1,7 @@
 <p align="center">
-  <h1 align="center">🗄️ MangaDB</h1>
+  <h1 align="center">MangaDB</h1>
   <p align="center">
-    Banco de dados local orientado a projetos, com criptografia AES-256, shell interativo e API REST.
+    Banco de dados local orientado a projetos, com criptografia AES-256-GCM, TUI interativa e API REST.
     <br />
     <em>Leve, sem servidor externo, tudo em JSON + TOML.</em>
   </p>
@@ -12,180 +12,131 @@
   <img src="https://img.shields.io/badge/license-MIT-green" />
   <img src="https://img.shields.io/badge/storage-JSON%20%2B%20TOML-orange" />
   <img src="https://img.shields.io/badge/encryption-AES--256--GCM-blueviolet" />
+  <img src="https://img.shields.io/badge/TUI-Rich-gold" />
 </p>
 
 ---
 
-## ✨ Features
+## Funcionalidades
 
 | Recurso | Descrição |
 |---|---|
 | **Projetos isolados** | Cada projeto é uma pasta independente com suas próprias tabelas |
-| **Autenticação por senha** | SHA-256 hash — projetos protegidos contra acesso não autorizado |
-| **Criptografia AES-256-GCM** | Campos marcados como `encrypted` são cifrados no disco com uma senha separada |
+| **Autenticação por senha** | PBKDF2-SHA256 com salt — proteção contra brute-force |
+| **Criptografia AES-256-GCM** | Campos marcados como `encrypted` são cifrados no disco |
 | **Schema tipado** | Cada tabela define tipos (`str`, `int`, `float`, `bool`) e valida na inserção |
 | **Queries ricas** | `=` `!=` `>` `<` `>=` `<=` `LIKE` `STARTS` `ENDS` `IN` `BETWEEN` com `AND` |
-| **Shell interativo** | CLI colorido com comandos curtos para CRUD completo |
-| **API REST (FastAPI)** | Servidor embutido com Swagger UI para integrações externas |
-| **API programática** | Classe `Mangadb` para usar diretamente em scripts Python |
+| **TUI interativa (Rich)** | Terminal com tema amarelo/laranja, tabelas, painéis e prompts estilizados |
+| **API REST (FastAPI)** | Servidor embutido com Swagger UI, schema e stats endpoints |
+| **API programática** | Classe `Mangadb` com conexão automática, context manager e métodos fluentes |
 | **File locking** | Proteção contra corrupção por acesso simultâneo (`filelock`) |
-| **Testes automatizados** | Suite com Pytest cobrindo core, queries e endpoints |
+| **Testes automatizados** | 66+ testes com Pytest cobrindo core, queries, API e web |
 
 ---
 
-## 📁 Estrutura do Projeto
+## Estrutura do Projeto
 
 ```
 mangaDB/
-├── main.py              # Ponto de entrada (shell)
+├── main.py                  # Ponto de entrada (TUI)
 ├── requirements.txt
 ├── pytest.ini
-├── DATA/                # Dados persistidos (criado automaticamente)
-│   ├── CONFIG.toml      # Registro de projetos
-│   └── meu_projeto/     # Pasta de um projeto
-│       └── tabela.json  # Arquivo de uma tabela
+├── Dockerfile
+├── DATA/                    # Dados persistidos (criado automaticamente)
+│   ├── CONFIG.toml          # Registro de projetos (PBKDF2 hashes)
+│   └── meu_projeto/         # Pasta de um projeto
+│       └── tabela.json      # Arquivo de uma tabela (com _key_salt)
 ├── src/
-│   ├── configs.py       # Caminhos, configurações globais e persistência TOML
+│   ├── configs.py           # Caminhos, configurações, cache, atomic write
 │   ├── api/
-│   │   ├── api.py       # Classe Mangadb (API programática)
-│   │   └── app.py       # Servidor FastAPI (REST)
+│   │   ├── __init__.py      # Exporta Mangadb
+│   │   ├── api.py           # Classe Mangadb (API programática)
+│   │   └── app.py           # Servidor FastAPI (REST)
 │   ├── cli/
-│   │   ├── shell.py     # Loop principal do shell
-│   │   └── handlers.py  # Handlers de comando (Project, Table, Record, System)
+│   │   ├── __init__.py
+│   │   ├── app.py           # Loop principal da TUI (Rich)
+│   │   ├── theme.py         # Cores e estilos (laranja/dourado)
+│   │   ├── widgets.py       # Componentes reutilizáveis (tabelas, painéis, inputs)
+│   │   └── handlers.py      # Handlers de comando (Project, Table, Record, System)
 │   └── core/
-│       ├── project.py   # Gerenciamento de projetos
-│       ├── tables.py    # CRUD de tabelas com criptografia
-│       ├── query.py     # Motor de queries avançado
-│       └── utils.py     # Validação e logging colorido
+│       ├── __init__.py
+│       ├── project.py       # Gerenciamento de projetos (PBKDF2)
+│       ├── tables.py        # CRUD de tabelas com criptografia + atomic update
+│       ├── query.py         # Motor de queries avançado
+│       └── utils.py         # Validação e logging colorido
 └── tests/
     ├── conftest.py
     ├── test_core.py
     ├── test_api.py
     ├── test_query.py
+    ├── test_utils_config.py
     └── test_web.py
 ```
 
 ---
 
-## 🚀 Instalação
+## Docker
 
 ```bash
-# Clone o repositório
+# Construir
+docker build -t mangadb .
+
+# Executar TUI (modo interativo)
+docker run -it --rm -v mangadb_data:/app/DATA mangadb
+
+# Executar servidor API REST
+docker run -d --rm -p 8000:8000 -v mangadb_data:/app/DATA mangadb python -m src.api.app
+```
+
+---
+
+## Instalação (local)
+
+```bash
 git clone https://github.com/marcosgabrielgomes110-collab/mangaDB.git
 cd mangaDB
-
-# Crie e ative o ambiente virtual
 python3 -m venv .venv
 source .venv/bin/activate
-
-# Instale as dependências
 pip install -r requirements.txt
 ```
 
 ---
 
-## 🖥️ Uso — Shell Interativo
+## Uso — TUI Interativa (Rich)
 
 ```bash
 python main.py
 ```
 
-O shell exibirá o prompt `MangaDB>`. Ao abrir um projeto, o prompt muda para `MangaDB [meu_projeto]>`.
+A TUI exibe um banner e o prompt `MangaDB > ` (laranja). Ao abrir um projeto, o prompt muda para `MangaDB [meu_projeto] > ` (laranja + dourado). Tabelas e resultados são renderizados com bordas e cores.
 
-### Comandos disponíveis
-
-#### Projetos
+### Comandos
 
 | Comando | Ação |
 |---|---|
-| `newp` | Criar novo projeto (pede nome, senha de autenticação e senha de criptografia) |
+| `newp` | Criar novo projeto |
 | `openp` | Abrir projeto existente |
-| `listp` | Listar todos os projetos |
-| `delp` | Deletar projeto (requer senha) |
-
-#### Tabelas (requer projeto aberto)
-
-| Comando | Ação |
-|---|---|
-| `newt` | Criar tabela com schema interativo |
-| `listt` | Listar tabelas do projeto |
-| `showt` | Visualizar schema e dados brutos |
+| `listp` | Listar projetos |
+| `delp` | Deletar projeto |
+| `newt` | Criar tabela com schema |
+| `listt` | Listar tabelas |
+| `showt` | Ver schema e dados |
 | `delt` | Deletar tabela |
-
-#### Registros (requer projeto aberto)
-
-| Comando | Ação |
-|---|---|
-| `insert` | Inserir registro (valida tipos do schema) |
-| `query` | Buscar registros com filtros avançados |
-| `update` | Atualizar campos de um registro por ID |
+| `insert` | Inserir registro |
+| `query` | Buscar com filtros |
+| `update` | Atualizar registro por ID |
 | `delr` | Deletar registro por ID |
-
-#### Sistema
-
-| Comando | Ação |
-|---|---|
-| `stats` | Estatísticas do banco e projeto |
-| `server start` | Iniciar API REST em background |
-| `server stop` | Parar a API |
-| `server status` | Ver status e endpoints |
-| `test` | Rodar suíte de testes |
-| `clearcache` | Limpar cache do sistema |
-| `home` | Fechar projeto atual |
+| `stats` | Estatísticas do sistema |
+| `server start/stop/status` | Gerenciar API REST |
+| `home` | Fechar projeto |
+| `test` | Rodar testes |
+| `clearcache` | Limpar cache |
 | `clear` | Limpar terminal |
-| `exit` | Sair do MangaDB |
-
-### Exemplo completo no shell
-
-```
-MangaDB> newp
-Nome: biblioteca
-Senha de autenticacao: minhasenha
-Senha de criptografia (ENTER para usar a mesma):
-✔ Projeto 'biblioteca' criado com sucesso.
-
-MangaDB> openp
-Nome: biblioteca
-Senha de autenticacao: minhasenha
-Senha de criptografia (ENTER para usar a mesma):
-✔ Projeto 'biblioteca' aberto.
-
-MangaDB [biblioteca]> newt
-Nome da tabela: mangas
-Colunas (enter vazio para finalizar):
-  coluna: titulo
-  tipo de 'titulo': str
-  criptografar 'titulo'? (y/n): n
-  coluna: autor
-  tipo de 'autor': str
-  criptografar 'autor'? (y/n): n
-  coluna: nota
-  tipo de 'nota': int
-  criptografar 'nota'? (y/n): n
-  coluna:
-✔ Tabela 'mangas' criada com sucesso.
-
-MangaDB [biblioteca]> insert
-Tabela: mangas
-  titulo (str): One Piece
-  autor (str): Eiichiro Oda
-  nota (int): 10
-✔ Registro inserido com sucesso.
-
-MangaDB [biblioteca]> query
-Tabela: mangas
-  Operadores: = != > < >= <= LIKE STARTS ENDS IN BETWEEN
-  Combinação: use AND ou vírgula  (ex: idade>18 AND nome LIKE Mar)
-Filtro (vazio para todos): nota>=8 AND autor LIKE Oda
-ℹ 1 registro(s) encontrado(s):
-  [a1b2c3d4] {'titulo': 'One Piece', 'autor': 'Eiichiro Oda', 'nota': 10}
-```
+| `exit` | Sair |
 
 ---
 
-## 🔍 Motor de Queries
-
-O MangaDB suporta queries ricas para buscar registros. Use os operadores abaixo:
+## Motor de Queries
 
 | Operador | Exemplo | Descrição |
 |---|---|---|
@@ -195,14 +146,13 @@ O MangaDB suporta queries ricas para buscar registros. Use os operadores abaixo:
 | `<` | `preco<100` | Menor que |
 | `>=` | `nota>=7` | Maior ou igual |
 | `<=` | `nota<=10` | Menor ou igual |
-| `LIKE` | `nome LIKE Mar` | Contém substring (case-insensitive) |
+| `LIKE` | `nome LIKE Mar` | Contém substring |
 | `STARTS` | `nome STARTS On` | Começa com |
 | `ENDS` | `email ENDS .com` | Termina com |
 | `IN` | `status IN ativo,pendente` | Valor está na lista |
 | `BETWEEN` | `idade BETWEEN 18,65` | Dentro do intervalo |
 
-**Combinar condições** com `AND` ou `,`:
-
+Combine condições com `AND` ou `,`:
 ```
 nota>=8 AND autor LIKE Oda
 idade>18, nome STARTS Mar
@@ -210,46 +160,46 @@ idade>18, nome STARTS Mar
 
 ---
 
-## 🔐 Criptografia
+## Criptografia
 
-O MangaDB usa **AES-256-GCM** para criptografar campos sensíveis no disco.
-
-- Ao criar um projeto, você define uma **senha de autenticação** (para abrir/deletar o projeto) e uma **senha de criptografia** (para cifrar/decifrar campos). Se omitir a segunda, ela usa a mesma da autenticação.
-- Ao criar uma tabela, cada coluna pode ser marcada como `encrypted: true`.
-- Os dados criptografados ficam armazenados como Base64 no JSON. Ao fazer `query` ou `select`, são descriptografados automaticamente em memória.
+- **Hash de senha**: PBKDF2-SHA256 com salt de 16 bytes (600.000 rounds)
+- **Criptografia de campos**: AES-256-GCM com nonce aleatório de 12 bytes
+- **Derivação de chave**: PBKDF2-SHA256 com salt próprio armazenado na tabela (`_key_salt`)
+- Ao criar um projeto, você define uma senha de autenticação e uma de criptografia (podem ser diferentes)
 
 ---
 
-## 🌐 API REST
+## API REST
 
-O MangaDB embute um servidor FastAPI para integrações externas.
+### Iniciar
 
-### Iniciar/parar via shell
-
-```
+```bash
+# Via TUI
 MangaDB> server start
-✔ Servidor iniciado com sucesso! (PID: 12345)
-ℹ Acesse: http://0.0.0.0:8000/docs para documentação.
 
-MangaDB> server stop
-✔ Servidor (PID: 12345) parado com sucesso.
+# Ou direto
+python -m src.api.app
 ```
 
 ### Endpoints
 
 | Método | Rota | Descrição |
 |---|---|---|
-| `POST` | `/projects/{project}/auth` | Autenticar no projeto |
+| `POST` | `/projects/{project}/auth` | Autenticar |
 | `GET` | `/projects/{project}/tables` | Listar tabelas |
-| `POST` | `/projects/{project}/tables/{table}/insert` | Inserir registro |
+| `POST` | `/projects/{project}/tables/{table}/create` | Criar tabela com schema |
+| `DELETE` | `/projects/{project}/tables/{table}` | Deletar tabela |
+| `GET` | `/projects/{project}/tables/{table}/schema` | Schema + contagem |
+| `POST` | `/projects/{project}/tables/{table}/insert` | Inserir (retorna `id`) |
 | `POST` | `/projects/{project}/tables/{table}/query` | Buscar registros |
 | `PUT` | `/projects/{project}/tables/{table}/{id}` | Atualizar registro |
 | `DELETE` | `/projects/{project}/tables/{table}/{id}` | Deletar registro |
+| `GET` | `/projects/{project}/stats` | Estatísticas do projeto |
 | `GET` | `/health` | Health check |
 
-A senha do projeto é enviada via header `X-Project-Password`.
+A senha é enviada via header `X-Project-Password`.
 
-### Exemplo com curl
+### Exemplos com curl
 
 ```bash
 # Autenticar
@@ -257,96 +207,99 @@ curl -X POST http://localhost:8000/projects/biblioteca/auth \
   -H "Content-Type: application/json" \
   -d '{"password": "minhasenha"}'
 
-# Inserir registro
+# Inserir (retorna o id do registro)
 curl -X POST http://localhost:8000/projects/biblioteca/tables/mangas/insert \
   -H "X-Project-Password: minhasenha" \
   -H "Content-Type: application/json" \
-  -d '{"titulo": "Naruto", "autor": "Masashi Kishimoto", "nota": 9}'
+  -d '{"titulo": "One Piece", "autor": "Oda", "nota": 10}'
 
 # Query rica
 curl -X POST http://localhost:8000/projects/biblioteca/tables/mangas/query \
   -H "X-Project-Password: minhasenha" \
   -H "Content-Type: application/json" \
-  -d '{"query": "nota>=8 AND autor LIKE Kishi"}'
+  -d '{"query": "nota>=8 AND autor LIKE Oda"}'
+
+# Ver schema da tabela
+curl -X GET http://localhost:8000/projects/biblioteca/tables/mangas/schema \
+  -H "X-Project-Password: minhasenha"
+
+# Estatisticas do projeto
+curl -X GET http://localhost:8000/projects/biblioteca/stats \
+  -H "X-Project-Password: minhasenha"
 ```
 
-### Documentação interativa
-
-Com o servidor rodando, acesse `http://localhost:8000/docs` para a interface Swagger gerada automaticamente.
+Documentação interativa em `http://localhost:8000/docs`.
 
 ---
 
-## 🐍 API Programática
-
-Use a classe `Mangadb` diretamente em qualquer script Python:
+## API Programática
 
 ```python
 from src.api import Mangadb
 
-# Conectar
+# Conexao automatica (lazy) + context manager
+with Mangadb("biblioteca", "minhasenha", table_name="mangas") as db:
+    # Insert retorna o ID
+    rid = db.insert({"titulo": "Bleach", "autor": "Tite Kubo", "nota": 8})
+    print(f"Inserido ID: {rid}")
+
+    # Query rica
+    results = db.query(query_str="nota>=8 AND autor LIKE Kubo")
+
+    # Query exata
+    results = db.query(where={"titulo": "Bleach"})
+
+    # query_one (retorna None se nao achar)
+    found = db.query_one(where={"titulo": "Bleach"})
+
+    # count
+    total = db.count()
+
+    # Atualizar
+    db.update(results[0]["_id"], {"nota": 9})
+
+    # Deletar
+    db.delete(results[0]["_id"])
+
+# Sem context manager (requer connect() manual)
 db = Mangadb("biblioteca", "minhasenha", table_name="mangas")
 db.connect()
-
-# Inserir
-db.insert({"titulo": "Bleach", "autor": "Tite Kubo", "nota": 8})
-
-# Query rica
-results = db.query(query_str="nota>=8 AND autor LIKE Kubo")
-print(results)
-
-# Query exata (legado)
-results = db.query(where={"titulo": "Bleach"})
-
-# Atualizar
-db.update(results[0]["_id"], {"nota": 9})
-
-# Deletar
-db.delete(results[0]["_id"])
-
-# Listar tabelas
 print(db.list_tables())
 ```
 
 ---
 
-## 🧪 Testes
+## Testes
 
 ```bash
-# Ativar o ambiente virtual
 source .venv/bin/activate
-
-# Rodar todos os testes
 pytest -v
-
-# Ou de dentro do shell
-MangaDB> test
 ```
 
 ---
 
-## ⚙️ Configuração
-
-Variáveis de ambiente opcionais para o servidor:
+## Configuração
 
 | Variável | Default | Descrição |
 |---|---|---|
 | `MANGADB_HOST` | `0.0.0.0` | Host do servidor |
 | `MANGADB_PORT` | `8000` | Porta do servidor |
-| `MANGADB_DEBUG` | `True` | Modo debug |
+| `MANGADB_DEBUG` | `False` | Modo debug |
+| `MANGADB_ORIGINS` | `http://localhost:8000` | Origens CORS (separadas por vírgula) |
 
 ---
 
-## 📋 Requisitos
+## Requisitos
 
 - Python 3.10+
-- Dependências: `fastapi`, `uvicorn`, `cryptography`, `tomli-w`, `filelock`
+- Dependências: `fastapi`, `uvicorn`, `cryptography`, `rich`, `tomli-w`, `filelock`
 - Testes: `pytest`, `httpx`
 
 ---
 
-## 📄 Licença
+## Licença
 
-Distribuído sob a licença MIT. Veja [LICENSE](LICENSE) para mais informações.
+Distribuído sob a licença MIT. Veja [LICENSE](LICENSE).
 
 ---
 

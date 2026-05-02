@@ -6,6 +6,7 @@ tomli-w==1.2.0
 filelock==3.28.0
 python-multipart==0.0.9
 cryptography
+rich
 
 # Ferramentas de Teste
 pytest==8.1.1

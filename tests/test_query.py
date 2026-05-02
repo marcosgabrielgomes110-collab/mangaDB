@@ -2,8 +2,6 @@ import pytest
 from src.core.query import Condition, parse_expression, parse_query, apply_conditions
 
 
-# ─── parse_expression ───
-
 class TestParseExpression:
     def test_equal(self):
         c = parse_expression("nome=Marcos")
@@ -33,6 +31,11 @@ class TestParseExpression:
         assert c.op == "<="
         assert c.value == 99.9
 
+    def test_scientific_notation(self):
+        c = parse_expression("valor>1e5")
+        assert c.op == ">"
+        assert c.value == 100000.0
+
     def test_like(self):
         c = parse_expression("nome LIKE Mar")
         assert c.op == "LIKE"
@@ -51,6 +54,10 @@ class TestParseExpression:
         assert c.op == "IN"
         assert c.value == ["ativo", "inativo", "pendente"]
 
+    def test_in_with_numbers(self):
+        c = parse_expression("idade IN 1,2,3")
+        assert c.value == [1, 2, 3]
+
     def test_between(self):
         c = parse_expression("idade BETWEEN 18,65")
         assert c.op == "BETWEEN"
@@ -62,8 +69,6 @@ class TestParseExpression:
     def test_invalid(self):
         assert parse_expression("campo BETWEEN 1,2,3") is None
 
-
-# ─── parse_query (múltiplas condições) ───
 
 class TestParseQuery:
     def test_and(self):
@@ -78,12 +83,10 @@ class TestParseQuery:
         assert parse_query("") == []
 
 
-# ─── Condition.match ───
-
 RECORDS = [
     {"nome": "Marcos", "idade": 25, "email": "marcos@x.com"},
     {"nome": "Maria", "idade": 17, "email": "maria@y.org"},
-    {"nome": "João", "idade": 40, "email": "joao@x.com"},
+    {"nome": "Joao", "idade": 40, "email": "joao@x.com"},
 ]
 
 
@@ -121,8 +124,8 @@ class TestConditionMatch:
 
     def test_like(self):
         c = Condition("nome", "LIKE", "Mar")
-        assert c.match(RECORDS[0])  # Marcos
-        assert c.match(RECORDS[1])  # Maria
+        assert c.match(RECORDS[0])
+        assert c.match(RECORDS[1])
         assert not c.match(RECORDS[2])
 
     def test_starts(self):
@@ -143,16 +146,24 @@ class TestConditionMatch:
 
     def test_between(self):
         c = Condition("idade", "BETWEEN", (18, 30))
-        assert c.match(RECORDS[0])  # 25
-        assert not c.match(RECORDS[1])  # 17
-        assert not c.match(RECORDS[2])  # 40
+        assert c.match(RECORDS[0])
+        assert not c.match(RECORDS[1])
+        assert not c.match(RECORDS[2])
 
     def test_missing_field(self):
         c = Condition("telefone", "=", "123")
         assert not c.match(RECORDS[0])
 
+    def test_scientific_notation(self):
+        c = Condition("valor", ">", 1e5)
+        record = {"valor": 200000}
+        assert c.match(record)
 
-# ─── apply_conditions (AND lógico) ───
+    def test_large_int_eq(self):
+        c = Condition("big", "=", 9007199254740992)
+        record = {"big": 9007199254740993}
+        assert c.match(record) is False
+
 
 class TestApplyConditions:
     def test_multiple(self):
@@ -161,7 +172,17 @@ class TestApplyConditions:
             Condition("email", "ENDS", ".com"),
         ]
         result = apply_conditions(RECORDS, conds)
-        assert len(result) == 2  # Marcos (25, .com) e João (40, .com)
+        assert len(result) == 2
 
     def test_no_conditions(self):
         assert apply_conditions(RECORDS, []) == RECORDS
+
+    def test_empty_records(self):
+        assert apply_conditions([], [Condition("a", "=", "1")]) == []
+
+    def test_bool_field(self):
+        records = [{"name": "x", "active": True}, {"name": "y", "active": False}]
+        c = Condition("active", "=", True)
+        result = apply_conditions(records, [c])
+        assert len(result) == 1
+        assert result[0]["name"] == "x"
